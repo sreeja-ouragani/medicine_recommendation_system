@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import pandas as pd
 import numpy as np
 import nltk
@@ -6,11 +6,9 @@ import re
 from nltk.sentiment import SentimentIntensityAnalyzer
 from collections import defaultdict
 
-# Initialize Flask app
-app = Flask(__name__)
-
-# Download necessary NLTK data
 nltk.download('vader_lexicon')
+
+app = Flask(__name__, template_folder='templates')
 
 # Load Dataset
 try:
@@ -19,25 +17,18 @@ except FileNotFoundError:
     print("Error: Dataset file not found.")
     exit()
 
-# Drop missing reviews
 df.dropna(subset=['Reviews'], inplace=True)
 
-# Initialize Sentiment Analyzer
 sia = SentimentIntensityAnalyzer()
-
-# Vectorized Sentiment Analysis
 df['Sentiment_Score'] = df['Reviews'].astype(str).apply(lambda review: sia.polarity_scores(review)['compound'])
 df['Sentiment'] = np.where(df['Sentiment_Score'] > 0, "Positive",
                            np.where(df['Sentiment_Score'] < 0, "Negative", "Neutral"))
 
-# Efficient mapping
 sentiment_mapping = {"Negative": 0, "Neutral": 1, "Positive": 2}
 df['Sentiment_Label'] = df['Sentiment'].map(sentiment_mapping)
 
-# Extract unique conditions
 unique_conditions = set(map(str.lower, df['Condition'].dropna().unique()))
 
-# Symptom-to-disease mapping
 symptom_disease_map = {
     "fever": ["flu", "common cold", "covid-19"],
     "cough": ["common cold", "flu", "bronchitis"],
@@ -53,7 +44,7 @@ def predict_disease(symptoms):
             disease_counts[disease] += 1
 
     if not disease_counts:
-        return "Unclear diagnosis. You may have symptoms of multiple diseases. Consult a professional."
+        return "Unclear diagnosis. Consult a doctor."
 
     sorted_diseases = sorted(disease_counts.items(), key=lambda x: x[1], reverse=True)
     top_diseases = sorted_diseases[:2]
@@ -61,7 +52,7 @@ def predict_disease(symptoms):
     if len(top_diseases) > 1 and top_diseases[0][1] != top_diseases[1][1]:
         total_symptoms = sum(disease_counts.values())
         prediction = "You may have "
-        prediction += ", ".join([f"{disease} with {count/total_symptoms*100:.1f}% probability" for disease, count in top_diseases])
+        prediction += ", ".join([f"{disease} ({count/total_symptoms*100:.1f}% probability)" for disease, count in top_diseases])
         prediction += ". It is better to consult a doctor."
         return prediction
 
@@ -71,7 +62,12 @@ def extract_condition(user_input):
     lower_input = user_input.lower()
     return next((condition for condition in unique_conditions if condition in lower_input), None)
 
-def recommend_medicine(user_input):
+def recommend_medicine(user_input, age):
+    if age < 19:
+        return {
+            "Message": "Medicine recommendations are not available for individuals under 19 years old."
+        }
+    
     condition = extract_condition(user_input)
     symptoms = re.findall(r'\b\w+\b', user_input.lower())
     
@@ -89,7 +85,7 @@ def recommend_medicine(user_input):
     if condition_drugs.empty:
         return {
             "Disease Prediction": disease_prediction,
-            "Message": "No medicine found for this condition. " 
+            "Message": "No medicine found for this condition."
         }
 
     best_drug = condition_drugs.groupby("Drug")["Sentiment_Label"].mean().idxmax()
@@ -114,14 +110,19 @@ def recommend_medicine(user_input):
     }
 
 @app.route('/')
-def index():
-    return open('index.html', 'r').read()
+def home():
+    return render_template("index.html")
 
 @app.route('/recommend', methods=['POST'])
 def recommend():
-    data = request.get_json()
-    symptoms = data['symptoms']
-    recommendation = recommend_medicine(symptoms)
+    data = request.json
+    symptoms = data.get("symptoms", "")
+    age = int(data.get("age", 0))
+
+    if not symptoms or not age:
+        return jsonify({"error": "Invalid input"}), 400
+
+    recommendation = recommend_medicine(symptoms, age)
     return jsonify(recommendation)
 
 if __name__ == '__main__':
