@@ -1,0 +1,18 @@
+# Ignore the dataset file
+data.csv
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environment files
+venv/
+env/
+*.venv
+
+# Ignore log files and system files
+*.log
+.DS_Store
+*.swp
