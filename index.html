@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,45 +13,38 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background: linear-gradient(to right, #6a11cb, #e625fc6d); /* Gradient background */
+            background: linear-gradient(to right, #6a11cb, #e625fc6d);
         }
-
         .container {
             background-color: white;
-            padding: 40px; /* Increased padding */
+            padding: 40px;
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 600px; /* Increased container width */
+            max-width: 600px;
             text-align: center;
-            transition: height 0.3s ease;
         }
-
         h1 {
             font-size: 28px;
             color: #333;
             margin-bottom: 20px;
         }
-
-        p {
-            color: #555;
-            margin-bottom: 15px;
-            font-size: 16px;
+        .input-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
         }
-
         .input-box {
-            width: 100%;
-            padding: 14px;
-            margin: 10px 0;
+            flex: 1;
+            padding: 10px;
             border-radius: 8px;
             border: 1px solid #ccc;
             font-size: 16px;
-            color: #333;
         }
-
         button {
             width: 100%;
             padding: 14px;
+            margin-top: 10px;
             border-radius: 8px;
             background-color: #4CAF50;
             color: white;
@@ -61,89 +53,82 @@
             cursor: pointer;
             transition: background-color 0.3s ease;
         }
-
         button:hover {
             background-color: #45a049;
         }
-
         .result {
             margin-top: 20px;
             display: none;
+            text-align: left;
         }
-
         .result h3 {
             font-size: 20px;
             color: #333;
             margin-bottom: 10px;
         }
-
         .result p {
-            font-size: 14px;
+            font-size: 16px;
             color: #555;
             margin-bottom: 8px;
         }
-
-        .result p strong {
-            color: #333;
-        }
-
     </style>
 </head>
-
 <body>
-    <div class="container" id="container">
-        <h1>Welcome to the Medicine Recommendation System</h1>
-        <p>Please enter your symptoms below:</p>
-        <input type="text" id="symptoms" class="input-box" placeholder="Enter symptoms (comma-separated)" />
+    <div class="container">
+        <h1>Medicine Recommendation System</h1>
+        <div class="input-row">
+            <input type="text" id="symptoms" class="input-box" placeholder="Enter symptoms" />
+            <input type="number" id="age" class="input-box" placeholder="Age" min="1" />
+        </div>
         <button onclick="getRecommendation()">Get Recommendation</button>
-
+        
         <div id="result" class="result">
             <h3>Model Recommendation:</h3>
             <p><strong>Best Drug:</strong> <span id="best-drug"></span></p>
             <p><strong>Effectiveness:</strong> <span id="effectiveness"></span></p>
             <p><strong>Side Effects:</strong> <span id="side-effects"></span></p>
-            <p><strong>User Reviews Sentiment:</strong> <span id="user-reviews-sentiment"></span></p>
-            <p><strong>Disease Prediction:</strong> <span id="disease-prediction"></span></p>
+            <p><strong>User Reviews Sentiment:</strong> <span id="user-reviews"></span></p>
+            <p><strong>Disease Prediction:</strong> <span id="disease"></span></p>
             <p><strong>Message:</strong> <span id="message"></span></p>
         </div>
     </div>
-
+    
     <script>
         async function getRecommendation() {
             const symptoms = document.getElementById("symptoms").value;
-            if (!symptoms.trim()) {
-                alert("Please enter symptoms.");
+            const age = document.getElementById("age").value;
+            
+            if (!symptoms.trim() || !age) {
+                alert("Please enter symptoms and age.");
                 return;
             }
-
+            
             try {
                 const response = await fetch('/recommend', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ symptoms: symptoms })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symptoms, age })
                 });
-                const data = await response.json();
-
-                document.getElementById("best-drug").textContent = data["Best Drug"];
-                document.getElementById("effectiveness").textContent = data["Effectiveness"];
-                document.getElementById("side-effects").textContent = data["Side Effects"];
-                document.getElementById("user-reviews-sentiment").textContent = data["User Reviews Sentiment"];
-                document.getElementById("disease-prediction").textContent = data["Disease Prediction"];
-                document.getElementById("message").textContent = data["Message"];
-
-                document.getElementById("result").style.display = 'block';
                 
-                // Increase container size to accommodate results
-                const container = document.getElementById("container");
-                container.style.height = 'auto';  // Allow it to expand
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById("best-drug").textContent = data["Best Drug"] || "N/A";
+                    document.getElementById("effectiveness").textContent = data["Effectiveness"] || "N/A";
+                    document.getElementById("side-effects").textContent = data["Side Effects"] || "N/A";
+                    document.getElementById("user-reviews").textContent = data["User Reviews Sentiment"] || "N/A";
+                    document.getElementById("disease").textContent = data["Disease Prediction"] || "N/A";
+                    document.getElementById("message").textContent = data["Message"] || "N/A";
+                    
+                    document.getElementById("result").style.display = 'block';
+                } else {
+                    alert(data.error || "An error occurred.");
+                }
             } catch (error) {
                 console.error("Error:", error);
-                alert("Something went wrong. Please try again.");
+                alert("Failed to fetch recommendation.");
             }
         }
     </script>
 </body>
-
 </html>
